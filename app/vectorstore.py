@@ -1,27 +1,37 @@
 # app/vectorstore.py
 
 import os
+from dotenv import load_dotenv
 from qdrant_client import QdrantClient
-from fastapi import Depends
+from qdrant_client.http.models import VectorParams, Distance
 
-# Load from environment
-QDRANT_URL = os.getenv("QDRANT_URL")         # e.g. https://xxxx.a1.qdrant.cloud
-QDRANT_API_KEY = os.getenv("QDRANT_API_KEY") # from Access Tokens
-COLLECTION_NAME = os.getenv("QDRANT_COLLECTION")
+load_dotenv()
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
+QDRANT_HOST = os.getenv("QDRANT_HOST")
+COLLECTION_NAME = "document-qa"
 
-# Initialize once
-qdrant_client = QdrantClient(
-    url=QDRANT_URL,
-    api_key=QDRANT_API_KEY,
-    prefer_grpc=True
-)
+client = QdrantClient(url=f"https://{QDRANT_HOST}", api_key=QDRANT_API_KEY)
 
-def get_vector_store():
-    # Ensure the collection exists
-    if COLLECTION_NAME not in qdrant_client.get_collections().collections:
-        qdrant_client.recreate_collection(
+def init_qdrant(vector_size: int):
+    # 1. Check if the collection exists
+    cols = [c.name for c in client.get_collections().collections]
+    if COLLECTION_NAME in cols:
+        # 2. Fetch its config to see the existing vector size
+        info = client.get_collection(collection_name=COLLECTION_NAME)
+        
+        existing_size = info.config.params.vectors.size
+        # 3. If it doesn't match, delete it so we'll recreate below
+        if existing_size != vector_size:
+            client.delete_collection(collection_name=COLLECTION_NAME)
+
+    # 4. Create it if now missing
+    cols = [c.name for c in client.get_collections().collections]
+    if COLLECTION_NAME not in cols:
+        client.create_collection(
             collection_name=COLLECTION_NAME,
-            vector_size=768,
-            distance="Cosine"
+            vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
         )
-    return qdrant_client
+
+def get_vector_store(vector_size: int):
+    init_qdrant(vector_size)
+    return client

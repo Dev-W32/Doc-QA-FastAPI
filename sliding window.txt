@@ -1,0 +1,33 @@
+## Description
+The Sliding Window pattern is used for when we have to work with subarrays of a particular size. This is used to avoid repetitve work. Con: it does not handle negative elements in the array very well.
+
+### Mistakes
+- usually my approaches are correct, but almost all the time i am not able to count the subarrays which are in the middle. this is because i am not able to increment or decrement the pointers properly. need to learn that
+- because of that what is happening is that i am missing the subarrays in the middle and so the answer is not correct. 
+
+## Types
+- Brute force using for loop
+- Better approach
+	- used to avoid repetitve tasks 
+		- example: we need to add 3 numbers, when we have a for loop we do num1 + num2 + num3
+			- In the next iteration we do num2 + num3 + num4
+			- we can avoid this repetitve task of adding 2 previous numbers
+			- by adding num 4 and subtracting num1 from the current result
+		- No need of second loop
+- 
+
+## Usage
+- to identify sliding window we need to identify continuous subarrays or substring. largest, find maximum or minimum.
+- window size is given or sometimes we have to calculate window size. 
+	- in these cases we have a variable sized window. 
+	- find largest or smallest window according to a condition (not always single array element or the whole array)
+	- Variable type problems can be a bit complex other data structures are required
+
+
+## Algorithm
+- ![[Pasted image 20240618191147.png]]
+- `window size = j - i + 1`
+- if  `j - i + 1 < k` where k is the fixed window size then increase the window size else decrease the window size pointer i.e j. right now we are focusing on hitting the correct window size. j increase karte karte sum calculate karenge
+- if j - i +1 == k then maintain the window size, condition hit ho gayi subarray ki. calculation will happen here
+
+
