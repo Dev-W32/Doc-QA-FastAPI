@@ -78,9 +78,15 @@ def process_in_background(doc_id, filename, content, gcs_uri):
 def handle_ingest(file, background_tasks, db):
     filename = file.filename
     ext = Path(filename).suffix.lower()
-    if ext not in {".pdf", ".docx", ".txt"}:
-        raise HTTPException(415, detail=f"Unsupported file type: {ext}")
-    
+
+    # 1. Validate file extension
+    allowed = {".pdf", ".docx", ".txt"}
+    if ext not in allowed:
+        # 415 Unsupported Media Type
+        raise HTTPException(
+            status_code=415,
+            detail=f"Unsupported file type: {ext}. Allowed types: {', '.join(allowed)}"
+        )    
     # Read the bytes (you could also do: content = await file.read() in an async function)
     content = file.file.read()
     checksum = compute_checksum(content)

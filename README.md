@@ -6,31 +6,34 @@ This repository documents the step-by-step journey of building an AI-powered Doc
 
 ## ✅ What’s Done (Phase 0: Foundation)
 
-- **Set up FastAPI** with basic routing and health checks.
-- **Connected core services**:
+- **FastAPI set up** with:
+  - Basic routing and health checks.
+- **Integrated core services**:
   - ✅ PostgreSQL for storing document metadata.
   - ✅ Qdrant for vector similarity search.
   - ✅ Google Cloud Storage (GCS) for storing uploaded documents.
 - **Created `/ingest` endpoint**:
-  - Uploads files to GCS.
-  - Chunks the content using LangChain’s `RecursiveCharacterTextSplitter`.
-  - Embeds the chunks and stores them in Qdrant with metadata.
-- **Set up basic health checks** for each service.
+  - ✅ Uploads files to GCS.
+  - ✅ Chunks content using LangChain’s `RecursiveCharacterTextSplitter`.
+  - ✅ Embeds the chunks and stores them in Qdrant with metadata.
+- **Basic health checks** for all services.
 
 ---
 
-## 🔨 Current Work (Phase 1: Robust Ingestion & Document Tracking)
+### 🔨 Current Work (Phase 1: Robust Ingestion & Document Tracking)
 
-### 1.1 Robust Text Extraction for Various File Types
+#### 1.1 Robust Text Extraction for Various File Types
 
 **Goal:** Extract plain text from PDFs, DOCX, and TXT files.
 
-- [ ] Add support for:
+- [✅] Support for:
   - PDF (using `pypdf`)
   - DOCX (using `python-docx`)
   - TXT (direct read)
-- [ ] Detect file type by extension and apply the appropriate parser.
-- [ ] Handle unsupported formats or corrupted files gracefully.
+- [✅] Detect file type by extension and apply the appropriate parser.
+- [✅] Handle unsupported formats with clear 415 error.
+- [✅] Gracefully handle corrupted file parsing (400 error with reason).
+- [✅] Store status as `failed` in DB on extraction or upload error.
 
 ### 1.2 Store and Deduplicate Using PostgreSQL
 
