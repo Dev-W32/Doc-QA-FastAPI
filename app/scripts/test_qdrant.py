@@ -1,4 +1,4 @@
-from app.vectorstore import get_vector_store, COLLECTION_NAME
+from core.vectorstore import get_vector_store, COLLECTION_NAME
 import os
 
 

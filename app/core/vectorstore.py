@@ -1,4 +1,4 @@
-# app/vectorstore.py
+# app/core/vectorstore.py
 
 import os
 from dotenv import load_dotenv

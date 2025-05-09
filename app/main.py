@@ -1,11 +1,13 @@
-# app/main.py
-
 from fastapi import FastAPI, Depends, UploadFile, File
-from app.database import get_db_connection
-from app.vectorstore import get_vector_store, COLLECTION_NAME
+from app.core.database import get_db_connection
+from app.core.vectorstore import get_vector_store, COLLECTION_NAME
+from app.core.gcp_utils import upload_to_gcs
+
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-import uuid
 from langchain_huggingface import HuggingFaceEmbeddings
+
+import uuid
+import io
 
 app = FastAPI()
 
@@ -15,9 +17,7 @@ async def read_root():
 
 
 @app.get("/health")
-async def health(
-    db=Depends(get_db_connection),
-):
+async def health(db=Depends(get_db_connection)):
     try:
         with db.cursor() as cur:
             cur.execute("SELECT 1;")
@@ -25,11 +25,9 @@ async def health(
     except Exception:
         db_ok = False
 
-    # Embedder
     embedder = HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-MiniLM-L6-v2")
     dim = len(embedder.embed_query("test"))
 
-    # Vector store
     try:
         vs = get_vector_store(dim)
         collections = vs.get_collections()
@@ -44,18 +42,22 @@ async def health(
 @app.post("/ingest")
 async def ingest_document(file: UploadFile = File(...)):
     content = await file.read()
+
+    # Upload to GCS
+    gcs_uri = upload_to_gcs(io.BytesIO(content), file.filename)
+
+    # Split text
     text = content.decode("utf-8")
     splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
     docs = splitter.create_documents([text])
 
-    # Embedder
+    # Embed
     embedder = HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-MiniLM-L6-v2")
     vectors = embedder.embed_documents([doc.page_content for doc in docs])
 
-    # Vector store (initialize after embedding)
+    # Store in Qdrant
     dim = len(vectors[0])
     vs = get_vector_store(dim)
-
     points = [
         {
             "id": str(uuid.uuid4()),
@@ -63,12 +65,11 @@ async def ingest_document(file: UploadFile = File(...)):
             "payload": {
                 "text": doc.page_content,
                 "source": file.filename,
+                "gcs_uri": gcs_uri,
             }
         }
         for doc, vector in zip(docs, vectors)
     ]
 
-    print(points)
-
     vs.upsert(collection_name=COLLECTION_NAME, points=points)
-    return {"status": "success", "chunks_ingested": len(points)}
+    return {"status": "success", "chunks_ingested": len(points), "gcs_uri": gcs_uri}
