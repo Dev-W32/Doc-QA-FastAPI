@@ -1,3 +1,5 @@
+# app/core/init_db.py
+
 import os
 import psycopg2
 from dotenv import load_dotenv

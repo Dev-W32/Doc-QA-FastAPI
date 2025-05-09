@@ -1,3 +1,5 @@
+# app/main.py
+
 from fastapi import FastAPI, Depends, UploadFile, File
 from app.core.database import get_db_connection
 from app.core.vectorstore import get_vector_store, COLLECTION_NAME
