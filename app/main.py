@@ -1,17 +1,17 @@
 # app/main.py
 
-from fastapi import FastAPI, Depends, UploadFile, File
-from app.core.database import get_db_connection
-from app.core.vectorstore import get_vector_store, COLLECTION_NAME
-from app.core.gcp_utils import upload_to_gcs
+import logging
 
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
-
-import uuid
-import io
+from fastapi import FastAPI, Depends, UploadFile, File, BackgroundTasks, HTTPException
+from app.core.database import get_db_connection, pool
+from app.core.vectorstore import get_vector_store
+from app.core.embedder import dim
+from app.services.ingest_service import handle_ingest
 
 app = FastAPI()
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 @app.get("/")
 async def read_root():
@@ -20,58 +20,72 @@ async def read_root():
 
 @app.get("/health")
 async def health(db=Depends(get_db_connection)):
+    """
+    Return health status of the database and vector store.
+
+    - `database_ok`: True if the DB responds to `SELECT 1;`
+    - `vector_store_ok`: True if Qdrant collections can be listed
+    """
+    # 1. Database health check
     try:
         with db.cursor() as cur:
             cur.execute("SELECT 1;")
-            db_ok = cur.fetchone() == (1,)
+            database_ok = cur.fetchone() == (1,)
     except Exception:
-        db_ok = False
+        database_ok = False
 
-    embedder = HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-MiniLM-L6-v2")
-    dim = len(embedder.embed_query("test"))
-
+    # 2. Vector store health check
     try:
         vs = get_vector_store(dim)
-        collections = vs.get_collections()
-        vs_ok = collections is not None
+        vector_store_ok = vs.get_collections() is not None
+    except Exception:
+        vector_store_ok = False
+
+    return {"database_ok": database_ok, "vector_store_ok": vector_store_ok}
+
+
+@app.post("/ingest", status_code=202)
+async def ingest(
+    file: UploadFile = File(...),
+    background_tasks: BackgroundTasks = None,
+    db=Depends(get_db_connection),
+):
+    """
+    Kick off document ingestion:
+    1. Validates and records the document.
+    2. Uploads to GCS.
+    3. Schedules text extraction, chunking, embedding, and Qdrant upsert in background.
+    """
+    try:
+        return handle_ingest(file, background_tasks, db)
+    except HTTPException as e:
+        # Re-raise HTTPExceptions to preserve status_code & detail
+        raise e
     except Exception as e:
-        vs_ok = False
-        print(e)
-
-    return {"database_ok": db_ok, "vector_store_ok": vs_ok}
+        logger.exception("Unexpected error in /ingest")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@app.post("/ingest")
-async def ingest_document(file: UploadFile = File(...)):
-    content = await file.read()
-
-    # Upload to GCS
-    gcs_uri = upload_to_gcs(io.BytesIO(content), file.filename)
-
-    # Split text
-    text = content.decode("utf-8")
-    splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-    docs = splitter.create_documents([text])
-
-    # Embed
-    embedder = HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-MiniLM-L6-v2")
-    vectors = embedder.embed_documents([doc.page_content for doc in docs])
-
-    # Store in Qdrant
-    dim = len(vectors[0])
-    vs = get_vector_store(dim)
-    points = [
-        {
-            "id": str(uuid.uuid4()),
-            "vector": vector,
-            "payload": {
-                "text": doc.page_content,
-                "source": file.filename,
-                "gcs_uri": gcs_uri,
-            }
+@app.get("/documents/{document_id}")
+def get_document_status(document_id: str):
+    conn = pool.getconn()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id, filename, status, gcs_uri, error, uploaded_at FROM documents WHERE id = %s",
+            (document_id,)
+        )
+        row = cur.fetchone()
+        cur.close()
+        if not row:
+            raise HTTPException(status_code=404, detail="Document not found")
+        return {
+            "id": row[0],
+            "filename": row[1],
+            "status": row[2],
+            "gcs_uri": row[3],
+            "error": row[4],
+            "uploaded_at": row[5]
         }
-        for doc, vector in zip(docs, vectors)
-    ]
-
-    vs.upsert(collection_name=COLLECTION_NAME, points=points)
-    return {"status": "success", "chunks_ingested": len(points), "gcs_uri": gcs_uri}
+    finally:
+        pool.putconn(conn)
