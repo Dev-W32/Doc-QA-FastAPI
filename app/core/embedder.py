@@ -1,3 +1,4 @@
+# app/core/embedder.py
 from langchain_huggingface import HuggingFaceEmbeddings
 
 # Singleton embedder

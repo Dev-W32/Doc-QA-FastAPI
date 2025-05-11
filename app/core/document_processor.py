@@ -1,3 +1,5 @@
+# app/core/document_processor.py
+
 import io
 from pathlib import Path
 from pypdf import PdfReader

@@ -39,28 +39,28 @@ This repository documents the step-by-step journey of building an AI-powered Doc
 
 **Goal:** Track documents and prevent re-ingestion.
 
-- [ ] Compute SHA256 checksum of file content.
-- [ ] Store document metadata (filename, checksum, status, GCS URI).
-- [ ] Check DB for existing documents before ingesting.
-- [ ] Update ingestion status (`pending`, `ingested`, `failed`) based on processing outcome.
+- [✅] Compute SHA256 checksum of file content.
+- [✅] Store document metadata (filename, checksum, status, GCS URI).
+- [✅] Check DB for existing documents before ingesting.
+- [✅] Update ingestion status (`pending`, `ingested`, `failed`) based on processing outcome.
 
 ### 1.3 Improve Qdrant Payloads
 
 **Goal:** Link vectors to DB records.
 
-- [ ] Include DB document `id` in each Qdrant payload.
-- [ ] Add chunk number and GCS URI to the payload for traceability.
+- [✅] Include DB document `id` in each Qdrant payload.
+- [✅] Add chunk number and GCS URI to the payload for traceability.
 
 ### 1.4 Asynchronous Background Ingestion (Optional)
 
 **Goal:** Offload heavy lifting to background tasks.
 
-- [ ] Use FastAPI’s `BackgroundTasks` to handle:
+- [✅] Use FastAPI’s `BackgroundTasks` to handle:
   - Chunking
   - Embedding
   - Qdrant upserts
-- [ ] Return a `202 Accepted` immediately after file upload.
-- [ ] Update document status upon task completion.
+- [✅] Return a `202 Accepted` immediately after file upload.
+- [✅] Update document status upon task completion.
 
 ---
 

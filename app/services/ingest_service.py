@@ -56,19 +56,23 @@ def process_in_background(doc_id, filename, content, gcs_uri):
         vectors = embed_chunks(docs)
         vs = get_vector_store(dim)
         points = [
-            {
-                "id": str(uuid.uuid4()),
-                "vector": vector,
-                "payload": {
-                    "text": doc.page_content,
-                    "source": filename,
-                    "gcs_uri": gcs_uri,
-                    "document_id": doc_id,
-                }
-            }
-            for doc, vector in zip(docs, vectors)
-        ]
+    {
+        "id": str(uuid.uuid4()),  # vector_id
+        "vector": vector,
+        "payload": {
+            "text": doc.page_content,
+            "source": filename,
+            "gcs_uri": gcs_uri,
+            "db_id": doc_id,         # maps to DB record
+            "chunk_index": idx,      # dynamic chunk index
+            "total_chunks": len(docs),
+        }
+    }
+    for idx, (doc, vector) in enumerate(zip(docs, vectors))
+]
+
         vs.upsert(collection_name=COLLECTION_NAME, points=points)
+
         mark_complete(conn, doc_id)
     except Exception as e:
         mark_failed(conn, doc_id, str(e))

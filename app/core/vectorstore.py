@@ -12,6 +12,7 @@ COLLECTION_NAME = "document-qa"
 
 client = QdrantClient(url=f"https://{QDRANT_HOST}", api_key=QDRANT_API_KEY)
 
+
 def init_qdrant(vector_size: int):
     # 1. Check if the collection exists
     cols = [c.name for c in client.get_collections().collections]
